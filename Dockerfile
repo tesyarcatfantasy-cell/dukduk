@@ -76,7 +76,7 @@ COPY --from=duckdb-builder /src/duckdb/build/release/**/**/*.a /app/duckdblib/
 COPY --from=duckdb-builder /src/duckdb/build/release/**/**/**/**/*.a /app/duckdblib/
 COPY --from=duckdb-builder /src/duckdb/build/release/**/*.a /app/duckdblib/
 COPY --from=duckdb-builder /src/duckdb/build/release/*.a /app/duckdblib/
-COPY --from=duckdb-builder /src/duckdb/build/release/extension/ /app/duckdb/extension/
+COPY --from=duckdb-builder /src/duckdb/build/release/extension/ /app/duckdblib/extension/
 
 
 
@@ -89,7 +89,6 @@ FROM registry.suse.com/bci/bci-base:15.7
 
 COPY --from=appbuilder /app/main main-app
 COPY --from=appbuilder /app/duckdblib/ /duckdblib/
-
 
 
 

@@ -39,14 +39,20 @@ package_static_libs_zip() {
   mkdir -p "${package_dir}/duckdblib"
 
   find "${source_dir}" -type f -name "*.a" -exec cp {} "${package_dir}/duckdblib/" \;
-  while IFS= read -r extension_file; do
-    extension_name="$(basename "${extension_file}" .duckdb_extension)"
-    mkdir -p "${package_dir}/duckdblib/extension/${extension_name}"
-    cp "${extension_file}" "${package_dir}/duckdblib/extension/${extension_name}/"
-  done < <(find "${source_dir}/extension" -mindepth 2 -maxdepth 2 -type f -name "*.duckdb_extension" 2>/dev/null | sort)
+  if [[ -d "${source_dir}/extension" ]]; then
+    while IFS= read -r extension_file; do
+      extension_name="$(basename "${extension_file}" .duckdb_extension)"
+      mkdir -p "${package_dir}/duckdblib/extension/${extension_name}"
+      cp "${extension_file}" "${package_dir}/duckdblib/extension/${extension_name}/"
+    done < <(find "${source_dir}/extension" -mindepth 2 -maxdepth 2 -type f -name "*.duckdb_extension" | sort)
+  fi
 
   lib_count="$(find "${package_dir}/duckdblib" -type f -name "*.a" | wc -l | tr -d ' ')"
-  extension_count="$(find "${package_dir}/duckdblib/extension" -type f -name "*.duckdb_extension" 2>/dev/null | wc -l | tr -d ' ')"
+  if [[ -d "${package_dir}/duckdblib/extension" ]]; then
+    extension_count="$(find "${package_dir}/duckdblib/extension" -type f -name "*.duckdb_extension" | wc -l | tr -d ' ')"
+  else
+    extension_count="0"
+  fi
 
   if [[ "${lib_count}" == "0" ]]; then
     echo "Error: no static libraries found in ${source_dir}" >&2

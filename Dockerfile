@@ -10,7 +10,7 @@ FROM registry.suse.com/bci/gcc:14 as duckdb-downloader
 
 WORKDIR /src/
 
-RUN curl -L https://github.com/duckdb/duckdb/archive/refs/tags/v1.3.2.tar.gz | tar -xz
+RUN curl -L https://github.com/duckdb/duckdb/archive/refs/tags/v1.4.0.tar.gz | tar -xz
 
 FROM registry.suse.com/bci/gcc:14 as arrownanodownloader
 
@@ -50,7 +50,7 @@ RUN git clone https://github.com/Microsoft/vcpkg.git && ./vcpkg/bootstrap-vcpkg.
 
 ENV VCPKG_ROOT=/src/vcpkg
 
-COPY --from=duckdb-downloader /src/duckdb-1.3.2/ /src/duckdb/
+COPY --from=duckdb-downloader /src/duckdb-1.4.0/ /src/duckdb/
 
 COPY ./extension_config_local.cmake duckdb/extension/extension_config_local.cmake
 
@@ -83,14 +83,12 @@ COPY --from=duckdb-builder /src/duckdb/build/release/extension/ /app/duckdb/exte
 COPY ./appgo/ .
 
 
-RUN CGO_ENABLED=1 CPPFLAGS="-DDUCKDB_STATIC_BUILD" CGO_LDFLAGS="-L./duckdblib -larrow_extension -larrow -lduckdb_fastpforlib -lduckdb_fmt -lduckdb_fsst -lduckdb_hyperloglog -lduckdb_mbedtls -lduckdb_miniz -lduckdb_pg_query -lduckdb_re2 -lduckdb_skiplistlib -lduckdb_utf8proc -lduckdb_yyjson -limdb -lduckdb_static -lduckdb_zstd -ljemalloc_extension -lparquet_extension -lstdc++ -lm -ldl -lminizip-ng -lcore_functions_extension -lz -lexcel_extension -lexpat" go build -tags=duckdb_use_static_lib ./duckdb-tester/main.go 
+RUN CGO_ENABLED=1 CPPFLAGS="-DDUCKDB_STATIC_BUILD" CGO_LDFLAGS="-L./duckdblib -lnanoarrow_extension -lnanoarrow -lnanoarrow_ipc -lflatccrt -lduckdb_fastpforlib -lduckdb_fmt -lduckdb_fsst -lduckdb_hyperloglog -lduckdb_mbedtls -lduckdb_miniz -lduckdb_pg_query -lduckdb_re2 -lduckdb_skiplistlib -lduckdb_utf8proc -lduckdb_yyjson -limdb -lduckdb_static -lduckdb_zstd -ljemalloc_extension -lparquet_extension -lstdc++ -lm -ldl -lminizip-ng -lcore_functions_extension -lz -lexcel_extension -lexpat" go build -tags=duckdb_use_static_lib ./duckdb-tester/main.go 
 
 FROM registry.suse.com/bci/bci-base:15.7
 
 COPY --from=appbuilder /app/main main-app
 COPY --from=appbuilder /app/duckdblib/ /duckdblib/
-
-
 
 
 

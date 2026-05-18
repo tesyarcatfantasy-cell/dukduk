@@ -4,14 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 
-	_ "github.com/marcboeker/go-duckdb/v2"
+	_ "github.com/duckdb/duckdb-go/v2"
 )
 
 func main() {
 
 	extpath := "../duckdblib/extension/postgres_scanner/postgres_scanner.duckdb_extension"
 	xlsExtPath := "../duckdblib/extension/excel/excel.duckdb_extension"
-	arrowExtPath := "../duckdblib/extension/arrow/arrow.duckdb_extension"
+	arrowExtPath := "../duckdblib/extension/nanoarrow/nanoarrow.duckdb_extension"
 
 	extensions := []string{
 		extpath,

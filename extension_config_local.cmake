@@ -1,20 +1,24 @@
+# DuckDB v1.4.0-compatible extension pins.
+# Each external extension commit below points its duckdb submodule at
+# b8a06e4a22672e254cd0baa68a3dbed2eb51c56e, the DuckDB v1.4.0 tag.
 duckdb_extension_load(postgres_scanner
             DONT_LINK
             GIT_URL https://github.com/duckdb/duckdb-postgres
-            GIT_TAG c3024b5c8570695dc73422066fcd221ed64761de
+            GIT_TAG 6dabd956065e59b24d615fe03bab84d677fca6df
 )
 
 duckdb_extension_load(excel
     LOAD_TESTS
     GIT_URL https://github.com/duckdb/duckdb-excel
-    GIT_TAG 0f1df3b14ad6458b90b52c5f625b409a44648c05
+    GIT_TAG 27ebb61fefda2e29bf649f4348dff233880cf582
     INCLUDE_DIR src/excel/include
 )
 
 
-duckdb_extension_load(arrow
+duckdb_extension_load(nanoarrow
     LOAD_TESTS
-    LINKED_LIBS
-    GIT_URL https://github.com/duckdb/arrow
-    GIT_TAG aa244456bbbb805a9837cdd405d6f022d9e8d9ef
+    LINKED_LIBS "../../_deps/nanoarrow-build/lib*.a"
+    GIT_URL https://github.com/paleolimbot/duckdb-nanoarrow
+    GIT_TAG 0201908c2163218aba0b8eb95fca753ab3ee3868
+    INCLUDE_DIR src/include
 )

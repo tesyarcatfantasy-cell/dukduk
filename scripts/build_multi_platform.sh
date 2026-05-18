@@ -8,12 +8,54 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ARTIFACTS_DIR="${ROOT_DIR}/artifacts"
 OS_NAME=$(uname -s)
+DUCKDB_VERSION="v1.4.0"
 
 echo "Building fincent-api for multiple platforms..."
 echo "Root directory: ${ROOT_DIR}"
 echo "Artifacts will be output to: ${ARTIFACTS_DIR}"
 
 mkdir -p "${ARTIFACTS_DIR}"
+
+package_static_libs_zip() {
+  local platform="$1"
+  local source_dir="$2"
+  local package_dir="${ARTIFACTS_DIR}/duckdb-static-libs-${platform}"
+  local zip_path="${ARTIFACTS_DIR}/duckdb-static-libs-${platform}.zip"
+  local lib_count
+
+  if ! command -v zip >/dev/null 2>&1; then
+    echo "Error: zip not installed. Required to package static libraries." >&2
+    return 1
+  fi
+
+  if [[ ! -d "${source_dir}" ]]; then
+    echo "Error: static library source directory not found: ${source_dir}" >&2
+    return 1
+  fi
+
+  rm -rf "${package_dir}" "${zip_path}"
+  mkdir -p "${package_dir}/duckdblib"
+
+  find "${source_dir}" -type f -name "*.a" -exec cp {} "${package_dir}/duckdblib/" \;
+  lib_count="$(find "${package_dir}/duckdblib" -type f -name "*.a" | wc -l | tr -d ' ')"
+
+  if [[ "${lib_count}" == "0" ]]; then
+    echo "Error: no static libraries found in ${source_dir}" >&2
+    return 1
+  fi
+
+  {
+    echo "platform=${platform}"
+    echo "duckdb_version=${DUCKDB_VERSION}"
+    echo "library_count=${lib_count}"
+    echo "layout=duckdblib/*.a"
+  } > "${package_dir}/build-info.txt"
+
+  (cd "${package_dir}" && zip -qr "${zip_path}" .)
+  rm -rf "${package_dir}"
+
+  echo "✓ Static libraries zip: ${zip_path} (${lib_count} libraries)"
+}
 
 build_linux_amd64() {
   echo ""
@@ -31,8 +73,14 @@ build_linux_amd64() {
     "${ROOT_DIR}"
 
   echo "Extracting binary from Docker image..."
+  docker rm -f extract-linux 2>/dev/null || true
   docker create --name extract-linux fincent-api-builder:linux-amd64
-  docker cp extract-linux:/app/duckdb-tester/main "${ARTIFACTS_DIR}/fincent-api-linux-amd64" || true
+  docker cp extract-linux:/app/main "${ARTIFACTS_DIR}/fincent-api-linux-amd64" || true
+
+  echo "Extracting static libraries from Docker image..."
+  TMP_LINUX_LIBS="${ARTIFACTS_DIR}/.duckdblib-linux-amd64"
+  rm -rf "${TMP_LINUX_LIBS}"
+  docker cp extract-linux:/app/duckdblib "${TMP_LINUX_LIBS}"
   docker rm extract-linux
 
   if [ -f "${ARTIFACTS_DIR}/fincent-api-linux-amd64" ]; then
@@ -42,6 +90,9 @@ build_linux_amd64() {
     echo "Error: Failed to extract Linux binary from Docker" >&2
     return 1
   fi
+
+  package_static_libs_zip "linux-amd64" "${TMP_LINUX_LIBS}"
+  rm -rf "${TMP_LINUX_LIBS}"
 }
 
 build_macos_arm64() {
@@ -55,7 +106,7 @@ build_macos_arm64() {
   fi
 
   # Check dependencies
-  for cmd in cmake git python3 go make cc c++; do
+  for cmd in cmake git python3 go make cc c++ zip; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
       echo "Error: $cmd not installed. Install Xcode Command Line Tools and required packages." >&2
       echo "Run: xcode-select --install" >&2
@@ -71,12 +122,18 @@ build_macos_arm64() {
   BUILD_DIR="${ROOT_DIR}/.build"
   DUCKDB_DIR="${BUILD_DIR}/duckdb"
   VCPKG_DIR="${BUILD_DIR}/vcpkg"
-  DUCKDB_VERSION="v1.3.2"
 
   mkdir -p "${BUILD_DIR}"
 
   if [[ ! -d "${DUCKDB_DIR}/.git" ]]; then
     git clone --depth 1 --branch "${DUCKDB_VERSION}" https://github.com/duckdb/duckdb.git "${DUCKDB_DIR}"
+  else
+    CURRENT_DUCKDB_VERSION="$(git -C "${DUCKDB_DIR}" describe --tags --exact-match 2>/dev/null || true)"
+    if [[ "${CURRENT_DUCKDB_VERSION}" != "${DUCKDB_VERSION}" ]]; then
+      echo "Switching DuckDB checkout from ${CURRENT_DUCKDB_VERSION:-unknown} to ${DUCKDB_VERSION}..."
+      git -C "${DUCKDB_DIR}" fetch --depth 1 origin "refs/tags/${DUCKDB_VERSION}:refs/tags/${DUCKDB_VERSION}"
+      git -C "${DUCKDB_DIR}" checkout --force "${DUCKDB_VERSION}"
+    fi
   fi
 
   if [[ ! -d "${VCPKG_DIR}/.git" ]]; then
@@ -112,12 +169,14 @@ build_macos_arm64() {
     cp -R "${DUCKDB_DIR}/build/release/extension" "${TMP_DUCKDBLIB}/"
   fi
 
+  package_static_libs_zip "macos-arm64" "${TMP_DUCKDBLIB}"
+
   # Build Go application
   echo "Building Go application..."
   pushd "${ROOT_DIR}/appgo" >/dev/null
   CGO_ENABLED=1 \
   CPPFLAGS="-DDUCKDB_STATIC_BUILD" \
-  CGO_LDFLAGS="-L./.duckdblib_build -lduckdb_bundle -lminizip-ng -lstdc++ -lm -ldl -lexpat -lz -larrow -lcompression" \
+  CGO_LDFLAGS="-L./.duckdblib_build -lduckdb_bundle -lminizip-ng -lstdc++ -lm -ldl -lexpat -lz -lcompression -lnanoarrow -lnanoarrow_ipc -lflatccrt" \
   go build -tags=duckdb_use_static_lib -o "${ARTIFACTS_DIR}/fincent-api-macos-arm64" ./duckdb-tester/main.go
   popd >/dev/null
 

@@ -26,6 +26,13 @@ The multi-platform build also emits static library bundles:
 unzip artifacts/duckdb-static-libs-macos-arm64.zip
 ```
 
+On Linux, the script emits both the existing SUSE-based `linux-amd64` artifacts and Ubuntu 22.04-compatible `ubuntu-22.04-amd64` artifacts:
+
+```text
+artifacts/fincent-api-ubuntu-22.04-amd64
+artifacts/duckdb-static-libs-ubuntu-22.04-amd64.zip
+```
+
 The zip extracts to `duckdblib/*.a`, `duckdblib/extension/*/*.duckdb_extension`, and `build-info.txt`, so the extracted `duckdblib` directory can be passed directly with `-L./duckdblib` and used by runtime `LOAD '../duckdblib/extension/.../*.duckdb_extension'` calls.
 
 ## Native DuckDB build (macOS/Linux)

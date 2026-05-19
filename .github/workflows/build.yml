@@ -37,6 +37,18 @@ jobs:
           name: duckdb-static-libs-linux-amd64
           path: ./artifacts/duckdb-static-libs-linux-amd64.zip
 
+      - name: Upload Ubuntu 22.04 amd64 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fincent-api-ubuntu-22.04-amd64
+          path: ./artifacts/fincent-api-ubuntu-22.04-amd64
+
+      - name: Upload Ubuntu 22.04 amd64 Static Libraries
+        uses: actions/upload-artifact@v4
+        with:
+          name: duckdb-static-libs-ubuntu-22.04-amd64
+          path: ./artifacts/duckdb-static-libs-ubuntu-22.04-amd64.zip
+
   build-macos:
     runs-on: macos-latest
     steps:
@@ -80,6 +92,8 @@ jobs:
         with:
           files: |
             fincent-api-linux-amd64/fincent-api-linux-amd64
+            fincent-api-ubuntu-22.04-amd64/fincent-api-ubuntu-22.04-amd64
             fincent-api-macos-arm64/fincent-api-macos-arm64
             duckdb-static-libs-linux-amd64/duckdb-static-libs-linux-amd64.zip
+            duckdb-static-libs-ubuntu-22.04-amd64/duckdb-static-libs-ubuntu-22.04-amd64.zip
             duckdb-static-libs-macos-arm64/duckdb-static-libs-macos-arm64.zip

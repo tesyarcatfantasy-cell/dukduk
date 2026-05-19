@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Multi-platform build script for fincent-api
-# Builds for Linux amd64 and macOS arm64
+# Builds for Linux amd64, Ubuntu 22.04 amd64, and macOS arm64
 # Usage: ./scripts/build_multi_platform.sh
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -73,10 +73,17 @@ package_static_libs_zip() {
   echo "✓ Static libraries zip: ${zip_path} (${lib_count} libraries, ${extension_count} extensions)"
 }
 
-build_linux_amd64() {
+build_linux_docker_artifact() {
+  local platform="$1"
+  local dockerfile="$2"
+  local image_name="fincent-api-builder:${platform}"
+  local container_name="extract-${platform}"
+  local binary_path="${ARTIFACTS_DIR}/fincent-api-${platform}"
+  local tmp_libs="${ARTIFACTS_DIR}/.duckdblib-${platform}"
+
   echo ""
-  echo "=== Building for Linux amd64 ==="
-  
+  echo "=== Building for ${platform} ==="
+
   if ! command -v docker >/dev/null 2>&1; then
     echo "Error: Docker not installed. Required for Linux builds." >&2
     return 1
@@ -85,30 +92,38 @@ build_linux_amd64() {
   docker build \
     --target appbuilder \
     --build-arg TARGETARCH=amd64 \
-    -t fincent-api-builder:linux-amd64 \
+    -f "${dockerfile}" \
+    -t "${image_name}" \
     "${ROOT_DIR}"
 
   echo "Extracting binary from Docker image..."
-  docker rm -f extract-linux 2>/dev/null || true
-  docker create --name extract-linux fincent-api-builder:linux-amd64
-  docker cp extract-linux:/app/main "${ARTIFACTS_DIR}/fincent-api-linux-amd64" || true
+  docker rm -f "${container_name}" 2>/dev/null || true
+  docker create --name "${container_name}" "${image_name}"
+  docker cp "${container_name}:/app/main" "${binary_path}" || true
 
   echo "Extracting static libraries from Docker image..."
-  TMP_LINUX_LIBS="${ARTIFACTS_DIR}/.duckdblib-linux-amd64"
-  rm -rf "${TMP_LINUX_LIBS}"
-  docker cp extract-linux:/app/duckdblib "${TMP_LINUX_LIBS}"
-  docker rm extract-linux
+  rm -rf "${tmp_libs}"
+  docker cp "${container_name}:/app/duckdblib" "${tmp_libs}"
+  docker rm "${container_name}"
 
-  if [ -f "${ARTIFACTS_DIR}/fincent-api-linux-amd64" ]; then
-    chmod +x "${ARTIFACTS_DIR}/fincent-api-linux-amd64"
-    echo "✓ Linux amd64 binary: ${ARTIFACTS_DIR}/fincent-api-linux-amd64"
+  if [ -f "${binary_path}" ]; then
+    chmod +x "${binary_path}"
+    echo "✓ ${platform} binary: ${binary_path}"
   else
-    echo "Error: Failed to extract Linux binary from Docker" >&2
+    echo "Error: Failed to extract ${platform} binary from Docker" >&2
     return 1
   fi
 
-  package_static_libs_zip "linux-amd64" "${TMP_LINUX_LIBS}"
-  rm -rf "${TMP_LINUX_LIBS}"
+  package_static_libs_zip "${platform}" "${tmp_libs}"
+  rm -rf "${tmp_libs}"
+}
+
+build_linux_amd64() {
+  build_linux_docker_artifact "linux-amd64" "${ROOT_DIR}/Dockerfile"
+}
+
+build_ubuntu_2204_amd64() {
+  build_linux_docker_artifact "ubuntu-22.04-amd64" "${ROOT_DIR}/Dockerfile.ubuntu2204"
 }
 
 build_macos_arm64() {
@@ -210,6 +225,7 @@ if [ "$OS_NAME" = "Darwin" ]; then
 else
   echo "Detected Linux runner. Building for Linux."
   build_linux_amd64
+  build_ubuntu_2204_amd64
 fi
 
 echo ""

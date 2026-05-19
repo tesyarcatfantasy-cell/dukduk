@@ -47,6 +47,32 @@ build_duckdb_native_linux:
   rules:
     - when: manual
 
+build_duckdb_ubuntu_2204_amd64:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  tags:
+    - linux
+  script:
+    - docker build --target appbuilder --build-arg TARGETARCH=amd64 -f Dockerfile.ubuntu2204 -t fincent-api-builder:ubuntu-22.04-amd64 .
+    - docker rm -f extract-ubuntu-2204-amd64 || true
+    - docker create --name extract-ubuntu-2204-amd64 fincent-api-builder:ubuntu-22.04-amd64
+    - mkdir -p artifacts
+    - docker cp extract-ubuntu-2204-amd64:/app/main artifacts/fincent-api-ubuntu-22.04-amd64
+    - docker cp extract-ubuntu-2204-amd64:/app/duckdblib artifacts/duckdblib-ubuntu-22.04-amd64
+    - docker rm extract-ubuntu-2204-amd64
+    - chmod +x artifacts/fincent-api-ubuntu-22.04-amd64
+  artifacts:
+    name: "duckdb-ubuntu-22.04-amd64-$CI_COMMIT_SHA"
+    paths:
+      - artifacts/fincent-api-ubuntu-22.04-amd64
+      - artifacts/duckdblib-ubuntu-22.04-amd64/
+  rules:
+    - when: manual
+
 build_duckdb_native_macos:
   stage: build
   tags:

@@ -22,3 +22,11 @@ duckdb_extension_load(nanoarrow
     GIT_TAG 0201908c2163218aba0b8eb95fca753ab3ee3868
     INCLUDE_DIR src/include
 )
+
+duckdb_extension_load(httpfs
+    LOAD_TESTS
+    GIT_URL https://github.com/duckdb/duckdb-httpfs
+    GIT_TAG b28c9fa91b1e9b3708114ed447a573403cb85f73
+    INCLUDE_DIR extension/httpfs/include
+)
+
